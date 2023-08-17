@@ -4,16 +4,19 @@ from g4f import models
 
 logging = False
 
+
 class ChatCompletion:
     @staticmethod
-    def create(model: models.Model or str, messages: list, provider: Provider.Provider = None, stream: bool = False, auth: str = False, **kwargs):
+    def create(model: models.Model or str, messages: list, provider: Provider.Provider = None, stream: bool = False,
+               auth: str = False, **kwargs):
         kwargs['auth'] = auth
         if provider and provider.working == False:
             return f'{provider.__name__} is not working'
 
         if provider and provider.needs_auth and not auth:
             print(
-                f'ValueError: {provider.__name__} requires authentication (use auth="cookie or token or jwt ..." param)', file=sys.stderr)
+                f'ValueError: {provider.__name__} requires authentication (use auth="cookie or token or jwt ..." param)',
+                file=sys.stderr)
             sys.exit(1)
 
         try:

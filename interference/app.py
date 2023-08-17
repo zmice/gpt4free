@@ -3,22 +3,23 @@ import time
 import json
 import random
 
-from g4f import Model, ChatCompletion, Provider
+from g4f import ChatCompletion, Provider
 from flask import Flask, request, Response
 from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
 
+
 @app.route("/chat/completions", methods=['POST'])
 def chat_completions():
     streaming = request.json.get('stream', False)
     model = request.json.get('model', 'gpt-3.5-turbo')
     messages = request.json.get('messages')
-    
+
     response = ChatCompletion.create(model=model, stream=streaming,
                                      messages=messages)
-    
+
     if not streaming:
         while 'curl_cffi.requests.errors.RequestsError' in response:
             response = ChatCompletion.create(model=model, stream=streaming,
@@ -79,8 +80,8 @@ def chat_completions():
 if __name__ == '__main__':
     config = {
         'host': '0.0.0.0',
-        'port': 1337,
-        'debug': True
+        'port': 11337,
+        'debug': False
     }
 
     app.run(**config)

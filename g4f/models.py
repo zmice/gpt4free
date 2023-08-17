@@ -9,6 +9,7 @@ class Model:
     base_provider: str
     best_provider: ModuleType or None
 
+
 gpt_35_turbo = Model(
     name="gpt-3.5-turbo",
     base_provider="openai",
