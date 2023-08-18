@@ -6,6 +6,7 @@ import random
 from g4f import ChatCompletion, Provider
 from flask import Flask, request, Response
 from flask_cors import CORS
+from gevent import pywsgi
 
 app = Flask(__name__)
 CORS(app)
@@ -78,10 +79,12 @@ def chat_completions():
 
 
 if __name__ == '__main__':
-    config = {
-        'host': '0.0.0.0',
-        'port': 11337,
-        'debug': False
-    }
+    # config = {
+    #     'host': '0.0.0.0',
+    #     'port': 11337,
+    #     'debug': False
+    # }
+    # app.run(**config)
 
-    app.run(**config)
+    server = pywsgi.WSGIServer(('0.0.0.0', 11337), app)
+    server.serve_forever()
