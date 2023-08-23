@@ -34,7 +34,7 @@ class Item(BaseModel):
     messages: list[dict[str, str]]
 
 
-@app.post("/chat/completions", response_model=Item)
+@app.post("/chat/completions")
 def chat_completions(data: Item, token: str = Depends(oauth2_scheme)):
     if token != API_KEY:
         raise HTTPException(
