@@ -26,9 +26,6 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 API_KEY = os.getenv('API_KEY')
 
 
-# API_KEY = 'test'
-
-
 class Item(BaseModel):
     model: str = 'gpt-3.5-turbo'
     stream: bool = False
@@ -44,7 +41,6 @@ def chat_completions(data: Item, token: str = Depends(oauth2_scheme)):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or missing API Key",
         )
-    print(data)
     model = data.model
     stream = data.stream
 
