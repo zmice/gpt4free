@@ -24,6 +24,8 @@ app.add_middleware(
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 API_KEY = os.getenv('API_KEY')
+
+
 # API_KEY = 'test'
 
 
@@ -32,7 +34,7 @@ class Item(BaseModel):
     stream: bool = False
     auth: Union[str, None] = None,
     provider: Union[str, None] = None,
-    messages: Union[list[dict[str, str]], None] = None
+    messages: list[dict[str, str]]
 
 
 @app.post("/chat/completions", response_model=Item)
@@ -42,15 +44,11 @@ def chat_completions(data: Item, token: str = Depends(oauth2_scheme)):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or missing API Key",
         )
-
+    print(data)
     model = data.model
     stream = data.stream
 
-    response = ChatCompletion.create(model=model,
-                                     stream=stream,
-                                     provider=data.provider,
-                                     messages=data.messages,
-                                     auth=data.auth)
+    response = ChatCompletion.create(model=model, stream=stream, messages=data.messages, auth=data.auth)
 
     completion_id = "".join(random.choices(string.ascii_letters + string.digits, k=28))
     completion_timestamp = int(time.time())
