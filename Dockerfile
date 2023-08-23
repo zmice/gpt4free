@@ -18,4 +18,5 @@ RUN apt-get update \
 EXPOSE 11337
 
 # CMD指令指明运行容器时的操作命令
-CMD ["python3", "-m", "interference.app"]
+#CMD ["python3", "-m", "interference.app"]
+CMD ["uvicorn","interference.app:app","--host", "0.0.0.0","--port", "11337", "--proxy-headers"]

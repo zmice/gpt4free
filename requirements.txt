@@ -7,8 +7,7 @@ browser_cookie3
 websockets
 js2py
 quickjs
-flask
-flask_cors
+APIFlask
 watchdog~=3.0.0
 gevent
 flask_httpauth
@@ -16,3 +15,5 @@ python-dotenv
 openai
 setuptools
 werkzeug
+fastapi
+pydantic

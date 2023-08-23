@@ -1,44 +1,56 @@
 import json
+import os
 import random
 import string
 import time
-import os
-from typing import Any
+from typing import Any, Union
 
-from flask import Flask, request
-from flask_cors import CORS
-from flask_httpauth import HTTPBasicAuth
-from werkzeug.security import generate_password_hash, check_password_hash
-from gevent import pywsgi
+from fastapi import FastAPI, HTTPException, status, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+from fastapi.security import OAuth2PasswordBearer
+from pydantic import BaseModel
 
 from g4f import ChatCompletion
 
-app = Flask(__name__)
-CORS(app)
-auth = HTTPBasicAuth()
+app = FastAPI(docs_url=None, redoc_url=None)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-pwd = os.getenv('HTTP_AUTHENTICATION')
-
-users = {
-    "zmice": generate_password_hash(pwd),
-}
-
-
-@auth.verify_password
-def verify_password(username, password):
-    if username in users and \
-            check_password_hash(users.get(username), password):
-        return username
+API_KEY = os.getenv('API_KEY')
+# API_KEY = 'test'
 
 
-@app.route("/chat/completions", methods=["POST"])
-@auth.login_required
-def chat_completions():
-    model = request.get_json().get("model", "gpt-3.5-turbo")
-    stream = request.get_json().get("stream", False)
-    messages = request.get_json().get("messages")
+class Item(BaseModel):
+    model: str = 'gpt-3.5-turbo'
+    stream: bool = False
+    auth: Union[str, None] = None,
+    provider: Union[str, None] = None,
+    messages: Union[list[dict[str, str]], None] = None
 
-    response = ChatCompletion.create(model=model, stream=stream, messages=messages)
+
+@app.post("/chat/completions", response_model=Item)
+def chat_completions(data: Item, token: str = Depends(oauth2_scheme)):
+    if token != API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing API Key",
+        )
+
+    model = data.model
+    stream = data.stream
+
+    response = ChatCompletion.create(model=model,
+                                     stream=stream,
+                                     provider=data.provider,
+                                     messages=data.messages,
+                                     auth=data.auth)
 
     completion_id = "".join(random.choices(string.ascii_letters + string.digits, k=28))
     completion_timestamp = int(time.time())
@@ -104,11 +116,4 @@ def chat_completions():
         content = json.dumps(end_completion_data, separators=(",", ":"))
         yield f"data: {content}\n\n"
 
-    return app.response_class(streaming(), mimetype="text/event-stream")
-
-
-if __name__ == "__main__":
-    # app.run(host="0.0.0.0", port=1337, debug=True)
-    server = pywsgi.WSGIServer(('0.0.0.0', 11337), app)
-    print('Server running on http://localhost:11337')
-    server.serve_forever()
+    return StreamingResponse(streaming(), media_type='text/event-stream')
