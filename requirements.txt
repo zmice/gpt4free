@@ -11,3 +11,8 @@ flask
 flask_cors
 watchdog~=3.0.0
 gevent
+flask_httpauth
+python-dotenv
+openai
+setuptools
+werkzeug

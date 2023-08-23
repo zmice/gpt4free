@@ -2,19 +2,37 @@ import json
 import random
 import string
 import time
+import os
 from typing import Any
 
 from flask import Flask, request
 from flask_cors import CORS
+from flask_httpauth import HTTPBasicAuth
+from werkzeug.security import generate_password_hash, check_password_hash
 from gevent import pywsgi
 
 from g4f import ChatCompletion
 
 app = Flask(__name__)
 CORS(app)
+auth = HTTPBasicAuth()
+
+pwd = os.getenv('HTTP_AUTHENTICATION')
+
+users = {
+    "zmice": generate_password_hash(pwd),
+}
+
+
+@auth.verify_password
+def verify_password(username, password):
+    if username in users and \
+            check_password_hash(users.get(username), password):
+        return username
 
 
 @app.route("/chat/completions", methods=["POST"])
+@auth.login_required
 def chat_completions():
     model = request.get_json().get("model", "gpt-3.5-turbo")
     stream = request.get_json().get("stream", False)
@@ -92,4 +110,5 @@ def chat_completions():
 if __name__ == "__main__":
     # app.run(host="0.0.0.0", port=1337, debug=True)
     server = pywsgi.WSGIServer(('0.0.0.0', 11337), app)
+    print('Server running on http://localhost:11337')
     server.serve_forever()

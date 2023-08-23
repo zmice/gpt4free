@@ -1,3 +1,5 @@
 flask_cors
+flask_httpauth
 watchdog~=3.0.0
 gevent
+python-dotenv
