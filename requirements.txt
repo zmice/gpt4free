@@ -17,3 +17,4 @@ setuptools
 werkzeug
 fastapi
 pydantic
+uvicorn
