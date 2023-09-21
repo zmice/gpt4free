@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   dbus \
   && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir --upgrade -r ./requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple \
+RUN pip install --no-cache-dir --upgrade -r ./requirements.txt \
 && echo 'dockerfile build success ...'
 EXPOSE 11337
 
