@@ -1,14 +1,17 @@
-import random, requests, json
+from __future__ import annotations
+
+import random
+
+import requests
+
 from ..typing import Any, CreateResult
-from .base_provider import BaseProvider
+from .base_provider import BaseProvider, format_prompt
 
 
 class Wuguokai(BaseProvider):
     url = 'https://chat.wuguokai.xyz'
     supports_gpt_35_turbo = True
-    supports_stream = False
-    needs_auth = False
-    working = True
+    working = False
 
     @staticmethod
     def create_completion(
@@ -17,11 +20,6 @@ class Wuguokai(BaseProvider):
         stream: bool,
         **kwargs: Any,
     ) -> CreateResult:
-        base = ''
-        for message in messages:
-            base += '%s: %s\n' % (message['role'], message['content'])
-        base += 'assistant:'
-
         headers = {
             'authority': 'ai-api.wuguokai.xyz',
             'accept': 'application/json, text/plain, */*',
@@ -38,12 +36,12 @@ class Wuguokai(BaseProvider):
             'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
         }
         data ={
-            "prompt": base,
+            "prompt": format_prompt(messages),
             "options": {},
             "userId": f"#/chat/{random.randint(1,99999999)}",
             "usingContext": True
         }
-        response = requests.post("https://ai-api20.wuguokai.xyz/api/chat-process", headers=headers, data=json.dumps(data),proxies=kwargs['proxy'] if 'proxy' in kwargs else {})
+        response = requests.post("https://ai-api20.wuguokai.xyz/api/chat-process", headers=headers, timeout=3, json=data, proxies=kwargs['proxy'] if 'proxy' in kwargs else {})
         _split = response.text.split("> 若回答失败请重试或多刷新几次界面后重试")
         if response.status_code == 200:
             if len(_split) > 1:

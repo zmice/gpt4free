@@ -1,43 +1,39 @@
+from __future__ import annotations
+
 import json
+from curl_cffi.requests import AsyncSession
 
-import requests
-
-from ..typing import Any, CreateResult
-from .base_provider import BaseProvider
+from .base_provider import AsyncProvider, format_prompt
 
 
-class AItianhu(BaseProvider):
-    url = "https://www.aitianhu.com/"
-    working = False
+class AItianhu(AsyncProvider):
+    url = "https://www.aitianhu.com"
+    working = True
     supports_gpt_35_turbo = True
 
-    @staticmethod
-    def create_completion(
+    @classmethod
+    async def create_async(
+        cls,
         model: str,
         messages: list[dict[str, str]],
-        stream: bool, **kwargs: Any) -> CreateResult:
-        
-        base = ""
-        for message in messages:
-            base += "%s: %s\n" % (message["role"], message["content"])
-        base += "assistant:"
-
-        headers = {
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
-        }
-        data: dict[str, Any] = {
-            "prompt": base,
+        proxy: str = None,
+        **kwargs
+    ) -> str:
+        data = {
+            "prompt": format_prompt(messages),
             "options": {},
-            "systemMessage": "You are ChatGPT, a large language model trained by OpenAI. Follow the user's instructions carefully. Respond using markdown.",
-            "temperature": kwargs.get("temperature", 0.8),
-            "top_p": kwargs.get("top_p", 1),
+            "systemMessage": "You are ChatGPT, a large language model trained by OpenAI. Follow the user's instructions carefully.",
+            "temperature": 0.8,
+            "top_p": 1,
+            **kwargs
         }
-        url = "https://www.aitianhu.com/api/chat-process"
-        response = requests.post(url, headers=headers, json=data)
-        response.raise_for_status()
-        lines = response.text.strip().split("\n")
-        res = json.loads(lines[-1])
-        yield res["text"]
+        async with AsyncSession(proxies={"https": proxy}, impersonate="chrome107", verify=False) as session:
+            response = await session.post(cls.url + "/api/chat-process", json=data)
+            response.raise_for_status()
+            line = response.text.splitlines()[-1]
+            line = json.loads(line)
+            return line["text"]
+
 
     @classmethod
     @property
@@ -46,6 +42,7 @@ class AItianhu(BaseProvider):
             ("model", "str"),
             ("messages", "list[dict[str, str]]"),
             ("stream", "bool"),
+            ("proxy", "str"),
             ("temperature", "float"),
             ("top_p", "int"),
         ]

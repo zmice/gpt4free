@@ -1,14 +1,20 @@
-import os, json, uuid, requests
+from __future__ import annotations
 
-from Crypto.Cipher  import AES
-from ..typing       import Any, CreateResult
+import json
+import os
+import uuid
+
+import requests
+from Crypto.Cipher import AES
+
+from ..typing import Any, CreateResult
 from .base_provider import BaseProvider
 
 
 class GetGpt(BaseProvider):
     url                   = 'https://chat.getgpt.world/'
     supports_stream       = True
-    working               = True
+    working               = False
     supports_gpt_35_turbo = True
 
     @staticmethod

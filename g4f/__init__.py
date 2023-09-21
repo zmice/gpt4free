@@ -1,26 +1,37 @@
-from . import models
-from .Provider import BaseProvider
-from .typing import Any, CreateResult, Union
+from __future__ import annotations
+from g4f        import models
+from .Provider  import BaseProvider
+from .typing    import Any, CreateResult, Union
+import random
 
 logging = False
-
 
 class ChatCompletion:
     @staticmethod
     def create(
-            model: Union[models.Model, str],
-            messages: list[dict[str, str]],
-            provider: Union[type[BaseProvider], None] = None,
-            stream: bool = False,
-            auth: Union[str, None] = None, **kwargs: Any) -> Union[CreateResult, str]:
+        model    : Union[models.Model, str],
+        messages : list[dict[str, str]],
+        provider : Union[type[BaseProvider], None] = None,
+        stream   : bool                            = False,
+        auth     : Union[str, None]                = None, **kwargs: Any) -> Union[CreateResult, str]:
 
         if isinstance(model, str):
-            try:
+            if model in models.ModelUtils.convert:
                 model = models.ModelUtils.convert[model]
-            except KeyError:
+            else:
                 raise Exception(f'The model: {model} does not exist')
 
-        provider = model.best_provider if provider is None else provider
+        if not provider:
+            if isinstance(model.best_provider, list):
+                if stream:
+                    provider = random.choice([p for p in model.best_provider if p.supports_stream])
+                else:
+                    provider = random.choice(model.best_provider)
+            else:
+                provider = model.best_provider
+
+        if not provider:
+            raise Exception(f'No provider found')
 
         if not provider.working:
             raise Exception(f'{provider.__name__} is not working')
@@ -28,7 +39,7 @@ class ChatCompletion:
         if provider.needs_auth and not auth:
             raise Exception(
                 f'ValueError: {provider.__name__} requires authentication (use auth=\'cookie or token or jwt ...\' param)')
-
+            
         if provider.needs_auth:
             kwargs['auth'] = auth
 

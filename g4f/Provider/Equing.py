@@ -1,13 +1,17 @@
-import requests, json
+from __future__ import annotations
 
-from abc      import ABC, abstractmethod
+import json
+from abc import ABC, abstractmethod
+
+import requests
+
 from ..typing import Any, CreateResult
+from .base_provider import BaseProvider
 
 
-class Equing(ABC):
+class Equing(BaseProvider):
     url: str              = 'https://next.eqing.tech/'
-    working               = True
-    needs_auth            = False
+    working               = False
     supports_stream       = True
     supports_gpt_35_turbo = True
     supports_gpt_4        = False

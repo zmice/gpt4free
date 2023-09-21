@@ -1,6 +1,11 @@
-import json, requests, random
+from __future__ import annotations
 
-from ..typing       import Any, CreateResult
+import json
+import random
+
+import requests
+
+from ..typing import Any, CreateResult
 from .base_provider import BaseProvider
 
 
@@ -8,7 +13,7 @@ class EasyChat(BaseProvider):
     url: str              = "https://free.easychat.work"
     supports_stream       = True
     supports_gpt_35_turbo = True
-    working               = True
+    working               = False
 
     @staticmethod
     def create_completion(

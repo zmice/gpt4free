@@ -1,37 +1,46 @@
-import asyncio, aiohttp, json, os, random
+from __future__ import annotations
 
-from aiohttp        import ClientSession
-from ..typing       import Any, AsyncGenerator, CreateResult, Union
+import random
+import json
+import os
+from aiohttp        import ClientSession, ClientTimeout
+from ..typing       import AsyncGenerator
 from .base_provider import AsyncGeneratorProvider, get_cookies
+
 
 class Bing(AsyncGeneratorProvider):
     url             = "https://bing.com/chat"
-    needs_auth      = True
     working         = True
     supports_gpt_4  = True
-    supports_stream = True
         
     @staticmethod
     def create_async_generator(
             model: str,
             messages: list[dict[str, str]],
-            cookies: dict = get_cookies(".bing.com"), **kwargs) -> AsyncGenerator:
+            cookies: dict = None, **kwargs) -> AsyncGenerator:
         
+        if not cookies:
+            cookies = get_cookies(".bing.com")
         if len(messages) < 2:
             prompt = messages[0]["content"]
             context = None
-
         else:
             prompt = messages[-1]["content"]
             context = create_context(messages[:-1])
-
+        
+        if not cookies or "SRCHD" not in cookies:
+            cookies = {
+                'SRCHD'         : 'AF=NOFORM',
+                'PPLState'      : '1',
+                'KievRPSSecAuth': '',
+                'SUID'          : '',
+                'SRCHUSR'       : '',
+                'SRCHHPGUSR'    : '',
+            }
         return stream_generate(prompt, context, cookies)
 
 def create_context(messages: list[dict[str, str]]):
-    context = ""
-
-    for message in messages:
-        context += "[%s](#message)\n%s\n\n" % (message["role"], message["content"])
+    context = "".join(f"[{message['role']}](#message)\n{message['content']}\n\n" for message in messages)
 
     return context
 
@@ -152,32 +161,34 @@ class Defaults:
         'x-forwarded-for': ip_address,
     }
 
-    optionsSets = [
-        'saharasugg',
-        'enablenewsfc',
-        'clgalileo',
-        'gencontentv3',
-        "nlu_direct_response_filter",
-        "deepleo",
-        "disable_emoji_spoken_text",
-        "responsible_ai_policy_235",
-        "enablemm",
-        "h3precise"
-        "dtappid",
-        "cricinfo",
-        "cricinfov2",
-        "dv3sugg",
-        "nojbfedge"
-    ]
+    optionsSets = {
+        "optionsSets": [
+            'saharasugg',
+            'enablenewsfc',
+            'clgalileo',
+            'gencontentv3',
+            "nlu_direct_response_filter",
+            "deepleo",
+            "disable_emoji_spoken_text",
+            "responsible_ai_policy_235",
+            "enablemm",
+            "h3precise"
+            "dtappid",
+            "cricinfo",
+            "cricinfov2",
+            "dv3sugg",
+            "nojbfedge"
+        ]
+    }
 
-def format_message(message: dict) -> str:
-    return json.dumps(message, ensure_ascii=False) + Defaults.delimiter
+def format_message(msg: dict) -> str:
+    return json.dumps(msg, ensure_ascii=False) + Defaults.delimiter
 
 def create_message(conversation: Conversation, prompt: str, context: str=None) -> str:
     struct = {
         'arguments': [
             {
-                'optionsSets': Defaults.optionsSets,
+                **Defaults.optionsSets,
                 'source': 'cib',
                 'allowedMessageTypes': Defaults.allowedMessageTypes,
                 'sliceIds': Defaults.sliceIds,
@@ -217,7 +228,7 @@ async def stream_generate(
         cookies: dict=None
     ):
     async with ClientSession(
-        timeout=aiohttp.ClientTimeout(total=900),
+        timeout=ClientTimeout(total=900),
         cookies=cookies,
         headers=Defaults.headers,
     ) as session:
@@ -257,10 +268,6 @@ async def stream_generate(
                                     response_txt += inline_txt + '\n'
                                     result_text += inline_txt + '\n'
 
-                            if returned_text.endswith('   '):
-                                final = True
-                                break
-
                             if response_txt.startswith(returned_text):
                                 new = response_txt[len(returned_text):]
                                 if new != "\n":
@@ -274,14 +281,3 @@ async def stream_generate(
                             break
         finally:
             await delete_conversation(session, conversation)
-
-def run(generator: AsyncGenerator[Union[Any, str], Any]):
-    loop = asyncio.get_event_loop()
-    gen = generator.__aiter__()
-
-    while True:
-        try:
-            yield loop.run_until_complete(gen.__anext__())
-
-        except StopAsyncIteration:
-            break

@@ -1,11 +1,12 @@
+from __future__ import annotations
+
+import asyncio
 from abc import ABC, abstractmethod
 
-from ..typing import Any, CreateResult, AsyncGenerator, Union
-
 import browser_cookie3
-import asyncio
-from time import time
-import math
+
+from ..typing import Any, AsyncGenerator, CreateResult, Union
+
 
 class BaseProvider(ABC):
     url: str
@@ -34,18 +35,6 @@ class BaseProvider(ABC):
         ]
         param = ", ".join([": ".join(p) for p in params])
         return f"g4f.provider.{cls.__name__} supports: ({param})"
-    
-
-_cookies = {}
-
-def get_cookies(cookie_domain: str) -> dict:
-    if cookie_domain not in _cookies:
-        _cookies[cookie_domain] = {}
-        
-        for cookie in browser_cookie3.load(cookie_domain):
-            _cookies[cookie_domain][cookie.name] = cookie.value
-    
-    return _cookies[cookie_domain]
 
 
 class AsyncProvider(BaseProvider):
@@ -54,8 +43,9 @@ class AsyncProvider(BaseProvider):
         cls,
         model: str,
         messages: list[dict[str, str]],
-        stream: bool = False, **kwargs: Any) -> CreateResult:
-        
+        stream: bool = False,
+        **kwargs
+    ) -> CreateResult:
         yield asyncio.run(cls.create_async(model, messages, **kwargs))
 
     @staticmethod
@@ -67,44 +57,68 @@ class AsyncProvider(BaseProvider):
 
 
 class AsyncGeneratorProvider(AsyncProvider):
+    supports_stream = True
+
     @classmethod
     def create_completion(
         cls,
         model: str,
         messages: list[dict[str, str]],
-        stream: bool = True, **kwargs: Any) -> CreateResult:
-        
-        if stream:
-            yield from run_generator(cls.create_async_generator(model, messages, **kwargs))
-        else:
-            yield from AsyncProvider.create_completion(cls=cls, model=model, messages=messages, **kwargs)
+        stream: bool = True,
+        **kwargs
+    ) -> CreateResult:
+        loop = asyncio.new_event_loop()
+        try:
+            asyncio.set_event_loop(loop)
+            generator = cls.create_async_generator(model, messages, stream=stream, **kwargs)
+            gen  = generator.__aiter__()
+            while True:
+                try:
+                    yield loop.run_until_complete(gen.__anext__())
+                except StopAsyncIteration:
+                    break
+        finally:
+            asyncio.set_event_loop(None)
+            loop.close()
+
 
     @classmethod
     async def create_async(
         cls,
         model: str,
-        messages: list[dict[str, str]], **kwargs: Any) -> str:
-        
-        chunks = [chunk async for chunk in cls.create_async_generator(model, messages, **kwargs)]
-        if chunks:
-            return "".join(chunks)
+        messages: list[dict[str, str]],
+        **kwargs
+    ) -> str:
+        return "".join([chunk async for chunk in cls.create_async_generator(model, messages, stream=False, **kwargs)])
         
     @staticmethod
     @abstractmethod
     def create_async_generator(
-            model: str,
-            messages: list[dict[str, str]]) -> AsyncGenerator:
-        
+        model: str,
+        messages: list[dict[str, str]],
+        **kwargs
+    ) -> AsyncGenerator:
         raise NotImplementedError()
 
 
-def run_generator(generator: AsyncGenerator[Union[Any, str], Any]):
-    loop = asyncio.new_event_loop()
-    gen  = generator.__aiter__()
+_cookies = {}
 
-    while True:
+def get_cookies(cookie_domain: str) -> dict:
+    if cookie_domain not in _cookies:
+        _cookies[cookie_domain] = {}
         try:
-            yield loop.run_until_complete(gen.__anext__())
+            for cookie in browser_cookie3.load(cookie_domain):
+                _cookies[cookie_domain][cookie.name] = cookie.value
+        except:
+            pass
+    return _cookies[cookie_domain]
 
-        except StopAsyncIteration:
-            break
+
+def format_prompt(messages: list[dict[str, str]], add_special_tokens=False):
+    if add_special_tokens or len(messages) > 1:
+        formatted = "\n".join(
+            ["%s: %s" % ((message["role"]).capitalize(), message["content"]) for message in messages]
+        )
+        return f"{formatted}\nAssistant:"
+    else:
+        return messages[0]["content"]
